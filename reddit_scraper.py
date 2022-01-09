@@ -1,63 +1,136 @@
 import praw
 import pandas as pd
 
-class RedditScraper:
+class RedditScraper(object):
     
-    __client_id = 'B1DsaKlNLNzd7Q'
-    __client_secret = 'TyViPR-RF2t0xZiZqgfqfrkaxF-GTg'
-    __username = 'univr_prog_exam'
-    __password = 'univr_prog_exam'
-    __user_agent = 'mbti_prog_exam'
+    client_id = '7vJIHHjU9qY20Frw1Ykhag'
+    client_secret = '4FhXQKHEKUo_k5elRVMaooWRLN_Ejg'
+    username = 'univr_prog_exam'
+    password = 'univr_prog_exam'
+    user_agent = 'flair_prediction'
     
-    subreddit_name = 'mbti' # change to change subreddit to connect to
-    
-    data_dict = { # create dictionary for posts and comments
-        "type" : [],
-        "posts" : []
+    dict = { # create dictionary to store data
+        "id" : [],
+        "author" : [],
+        "author_flair_text" : [],
+        "body" : [],
+        "score" : [],
+        "subreddit" : [],
+        "created_utc" : [],
+        "link_id" : [],
+        "parent_id" : [],
+        "title" : [],
+        "upvote_ratio" : [],
+        "post_hint" : []
     }
     
-    df = {}
     
-    def __init__(self, post_limit):
-        self.post_limit = post_limit # number of posts to retrieve
-    
-    def __RedditAPIConnection(self):
+    def __init__(self):
+        
         # CONNECT TO REDDIT API
-        reddit = praw.Reddit(client_id = self.__client_id,
-                            client_secret = self.__client_secret,
-                            # username = self.__username,
-                            # password = self.__password,
-                            user_agent = self.__user_agent)
-        return reddit
+        self.reddit = praw.Reddit(client_id = self.client_id,
+                            client_secret = self.client_secret,
+                            username = self.username,
+                            password = self.password,
+                            user_agent = self.user_agent)
         
-    def SubredditConnection(self):
-        reddit = self.__RedditAPIConnection()
-        
-        # CONNECT TO SPECIFIC SUBREDDIT (r/mbti) AND RETRIEVE AN ARBITRARY NUMBER OF POSTS
-        subreddit = reddit.subreddit(self.subreddit_name)
-        top_mbti = subreddit.top(limit = self.post_limit)
-        return top_mbti
             
-    def ScrapeData(self):
+    def retrieve_posts(self, post_limit, subreddit_name = "mbti"):
         # INITIALIZATION
-        top_mbti = self.SubredditConnection()
+        # self.post_limit = post_limit # number of posts to retrieve
+        # self.subreddit_name = subreddit_name # change to change subreddit to connect to
+        
+        # CONNECT TO SPECIFIC SUBREDDIT AND RETRIEVE AN ARBITRARY NUMBER OF POSTS
+        self.subreddit = self.reddit.subreddit(subreddit_name)
+        top_subreddit = self.subreddit.top(limit = post_limit)
                 
+        counter = 0
+        
         # RETRIEVE POSTS
-        for submission in top_mbti:
-            if submission.author_flair_text:
-                self.data_dict["type"].append(submission.author_flair_text)
-                self.data_dict["posts"].append(submission.title)
-
-            # RETRIEVE ALL COMMENTS FOR EACH POST
-            submission.comments.replace_more()
-            comments = submission.comments.list()
+        for submission in top_subreddit:
+            if (submission.author_flair_text != "") and (not submission.is_video) and (not submission.over_18):
+                self.dict["id"].append(submission.id)
+                self.dict["author"].append(submission.author)
+                self.dict["author_flair_text"].append(submission.author_flair_text)
+                self.dict["title"].append(submission.title)
+                self.dict["score"].append(submission.score)
+                self.dict["upvote_ratio"].append(submission.upvote_ratio)
+                self.dict["subreddit"].append(submission.subreddit)
+                self.dict["created_utc"].append(submission.created_utc)
+                self.dict["post_hint"].append(submission.post_hint)
+                
+                counter += 1
+            
+                if (counter % 100 == 0):
+                    print("iteration #{}".format(counter))
+                   
+        return self.dict
+    
+    
+    def retrieve_comments_from_submission(self, submissions_id, subreddit_name = "mbti"):
+        self.subreddit = self.reddit.subreddit(subreddit_name)
+        
+        counter = 0
+        
+        for submission_id in submissions_id:
+            # RETRIEVE ALL COMMENTS FOR EACH POST        
+            submissions = self.reddit.submission(submission_id)
+            
+            submissions.comments.replace_more()
+            comments = submissions.comments.list()
+                
             for comment in comments:
                 if comment.author_flair_text:
-                    self.data_dict["type"].append(comment.author_flair_text)
-                    self.data_dict["posts"].append(comment.body)
+                    self.dict["id"].append(comment.id)
+                    self.dict["author"].append(comment.author)
+                    self.dict["author_flair_text"].append(comment.author_flair_text)
+                    self.dict["body"].append(comment.body)
+                    self.dict["score"].append(comment.score)
+                    self.dict["subreddit"].append(comment.subreddit)
+                    self.dict["created_utc"].append(comment.created_utc)
+                    self.dict["link_id"].append(comment.link_id)
+                    self.dict["parent_id"].append(comment.parent_id)
+            
+            counter += 1
+            
+            if (counter % 100 == 0):
+                print("iteration #{}".format(counter))
+            
+        return self.dict
+    
+    
+    # CONNECT TO SPECIFIC USERNAME AND RETRIEVE AN ARBITRARY NUMBER OF COMMENTS (IT DOESN'T WORK, ERROR 404)
+    def retrieve_comments_from_user(self, subreddit_name = "mbti"):
+        
+        if (bool(self.dict.get('id'))):
+            print("Retrieving users in dictionary...") 
+            redditors_id = set(self.dict.get('id'))
+            redditors_id = list(redditors_id)
+        else:
+            # ACCEPTS ONLY ONE USERNAME EACH REQUEST
+            redditor_id = str(input("Specify a Reddit username first: "))
+            redditors_id = list()
+            redditors_id.append(redditor_id)
+        
+        
+        for redditor_id in redditors_id:
+            submissions = self.reddit.submission('r/u_' + redditor_id)
+            submissions.comments.replace_more()
+            comments = submissions.comments.new(limit = None).list()
+            
+            for comment in comments:
+                self.dict["id"].append(comment.id)
+                self.dict["author"].append(comment.author)
+                self.dict["author_flair_text"].append("")
+                self.dict["body"].append(comment.body)
+                self.dict["score"].append(comment.score)
+                self.dict["subreddit"].append(comment.subreddit)
+                self.dict["created_utc"].append(comment.created_utc)
+                self.dict["link_id"].append(comment.link_id)
+                self.dict["parent_id"].append(comment.parent_id)
                 
-    def CreateDataFrame(self):
-        # PUT DICTIONARY INTO DATAFRAME AND CREATE CSV
-        self.df = pd.DataFrame(self.data_dict)
-        # self.df.to_csv('./data/reddit/reddit_mbti_data.csv', index = False)
-        return self.df
+        return self.dict
+    
+    def update_flair(self):
+        #TODO
+        return
