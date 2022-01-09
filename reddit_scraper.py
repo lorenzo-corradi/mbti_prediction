@@ -3,11 +3,6 @@ import pandas as pd
 
 class RedditScraper(object):
     
-    client_id = '7vJIHHjU9qY20Frw1Ykhag'
-    client_secret = '4FhXQKHEKUo_k5elRVMaooWRLN_Ejg'
-    username = 'univr_prog_exam'
-    password = 'univr_prog_exam'
-    user_agent = 'flair_prediction'
     
     dict = { # create dictionary to store data
         "id" : [],
