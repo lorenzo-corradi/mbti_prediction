@@ -1,62 +1,77 @@
+from data_loader import DataLoader
 import pandas as pd
-import matplotlib.pyplot as plt
-import numpy as np
-import re
-# import nltk # used to locally download stopwords and wordnet, uncomment if necessary
-from nltk.corpus import stopwords
-from nltk import word_tokenize
-from nltk.stem import WordNetLemmatizer
-from sklearn.preprocessing import LabelEncoder
+import spacy
+from spacy.lang.en.stop_words import STOP_WORDS
+
+# objective: remove stopwords and punctuation
+# custom bi-grams and tri-grams without stopwords removal
+# idea: create different .csv: one with stopwords, one without stopwords, one with comments of >= x char, one with less
 
 class Preprocessing:
     
-    df = {}
     
-    # LEMMATIZING: REDUCING WORD TO ITS BASIC FORM, RESULTING IN AN ACTUAL LANGUAGE WORD
-    __lemmatizer = WordNetLemmatizer()
-    # nltk.download('stopwords') # used to locally download stopwords, uncomment if necessary
-    # nltk.download('wordnet') # used to locally download wordnet, uncomment if necessary
-    __stopwords = stopwords.words("english")
+    def init_spacy(self, X):
+        
+        nlp = spacy.load("en_core_web_sm")
+        docs = nlp.pipe(X.astype('unicode').values)
+        
+        return docs
     
-    def __init__(self, df):
-        self.df = df
     
-    def __labelEncoder(self):
-        # EXTRACT LABELS
-        labels = sorted(self.df['type'].unique().tolist())
-        label_encoder = LabelEncoder().fit(labels) # creates numerical labels
-        return label_encoder
-
-    def preprocessing(self, remove_stop_words = True):
+    def remove_punctuation(self, docs, X):
         
-        list_type = []
-        list_posts = []
-        len_df = len(self.df)
-        
-        i = 0
-        
-        for row in self.df.iterrows():
-            i += 1
-            
-            if i % 100 == 0:
-                print("%s of %s rows processed" % (i, len_df))
-
-            posts = row[1].posts # select row
-            temp = re.sub('http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', 'link', posts) # replace urls with word 'link'
-            temp = re.sub("[^a-zA-Z]", " ", temp) # keep only words
-            temp = re.sub(' +', ' ', temp).lower() # remove spaces > 1
-            
-            if remove_stop_words:
-                temp = " ".join([self.__lemmatizer.lemmatize(w) for w in temp.split(' ') if w not in self.__stopwords]) # divide posts in words and remove stopwords
-            else:
-                temp = " ".join([self.__lemmatizer.lemmatize(w) for w in temp.split(' ')]) # divide posts in words
+        X_nopunct = [[w.lemma_ for w in doc if not w.is_punct] for doc in docs]
                 
-            result = temp.lstrip() # removing leading whitespace
-            type_labelized = self.__labelEncoder().transform([row[1].type])[0]
-            list_type.append(type_labelized)
-            list_posts.append(result)
-
-        list_posts = np.array(list_posts)
-        list_type = np.array(list_type)
+        X_nopunct = pd.Series(X_nopunct)        
         
-        return list_posts, list_type, self.df['type']
+        return X_nopunct
+    
+    
+    def remove_stopwords(self, docs, X):
+        
+        X_nostop = [[w.lemma_ for w in doc if not w.is_stop] for doc in docs]
+        
+        X_nostop = pd.Series(X_nostop)
+        
+        return X_nostop
+    
+    
+    def remove_numbers(self, docs, X):
+        
+        X_nonums = [[w.lemma_ for w in doc if not w.like_num] for doc in docs]
+
+        X_nonums = pd.Series(X_nonums)
+        
+        return X_nonums
+    
+    
+    def find_bigrams(self, X):
+        
+        # bug due to data type
+        X_bigrams = [[b for b in zip(l.split(' ')[:-(len(X) - 1)], l.split(' ')[(len(X) - 1):])] for l in X.values]
+        
+        X_bigrams = pd.Series(X_bigrams)
+        
+        return X_bigrams
+    
+        
+    def export_data(self, X, string):
+        
+        X.to_csv('./data/mbti_clean_'+ string + '.csv', index = False)
+        
+        return
+    
+    
+    # def __labelEncoder(self):
+    #     # EXTRACT LABELS
+    #     labels = sorted(self.df['type'].unique().tolist())
+    #     label_encoder = LabelEncoder().fit(labels) # creates numerical labels
+    #     return label_encoder
+    
+if __name__ == "__main__":
+    
+    data_loader = DataLoader()
+    X = data_loader.load_clean_data_pandas()
+    
+    preprocessing = Preprocessing()
+    
