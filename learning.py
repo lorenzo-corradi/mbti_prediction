@@ -1,36 +1,34 @@
+from data_loader import DataLoader
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import seaborn as sns
 import streamlit as st
-from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer, TfidfTransformer
-from sklearn.model_selection import RepeatedStratifiedKFold, StratifiedKFold, StratifiedShuffleSplit
-from sklearn.metrics import classification_report, confusion_matrix
+from gensim.models import KeyedVectors
+from sklearn.preprocessing import LabelEncoder
+from sklearn.metrics import confusion_matrix
 import xgboost as xgb
 import pickle
-import itertools
 import os
+import time
+
 
 class Learning:
+
+    def load_word_vectors(self, limit = 150000):
+        word_vectors = KeyedVectors.load_word2vec_format(data_loader.path_pretrained_word2vec(), binary = True, limit = limit)
+        return word_vectors
     
-    X = []
-    y = []
-    flair = []
-    param = {}
-    
-    def __init__(self, X = [], y = [], flair = []):
-        self.X = X
-        self.y = y
-        self.flair = flair
+
+    def __labelEncoder(self, X):
         
+        # creates numerical labels
+        labels = sorted(X['author_flair_text'].unique().tolist())
+        label_encoder = LabelEncoder().fit(labels)
+        return label_encoder
+    
         
     # CONFUSION MATRIX, USED TO PLOT CLASSIFIER PREDICTION
-    def __plotConfusionMatrix(self,
-                            cm, 
-                            classes,
-                            normalize = True,
-                            title = 'Confusion matrix',
-                            cmap = plt.cm.Blues):
+    def __plotConfusionMatrix(self, cm, classes, normalize = True, title = 'Confusion matrix', cmap = plt.cm.Blues):
 
         if normalize:
             cm = cm.astype('float') / cm.sum(axis = 1)[:, np.newaxis]
@@ -51,24 +49,54 @@ class Learning:
         
         st.pyplot(fig)
         # plt.show()
+        return
+    
+    
+    def vectorize_tokens(self, X):
+        
+        word_vectors = learning.load_word_vectors()
+        X['token_vector'] = None
+        X['token_vector'] = [word_vectors[word] if word in word_vectors.key_to_index else None for word in X['tokens']]
+        
+        return X
+    
+    
+    # TODO: DOES NOT WORK!
+    def average_tokens(self, X):
+        
+        X_average_vector = [X['token_vector'].mean(axis = 1) for value in X['body_index']]
+        print(len(X_average_vector))
+        # X_average_vector = np.mean([X['token_vector'].mean() for value in X['body_index']], axis = 0)
+        print(X_average_vector[0])
+        
+        return X_average_vector
+            
+    
+    def export_vectorized_data(self, X):
+
+        start_time = time.time()
+
+        with open('C:\\Users\\LCorradi\\Desktop\\University\\Passed Exams and Python Envs\\Python Envs of Passed Exams\\data\\mbti_vectorized.pkl', 'wb') as f:
+            pickle.dump(X, f)
+
+        X.to_csv('C:\\Users\\LCorradi\\Desktop\\University\\Passed Exams and Python Envs\\Python Envs of Passed Exams\\data\\mbti_vectorized.csv', index = False)
+
+        print("--- Dataset uploaded in .csv and .pkl.gz. Time elapsed: %s seconds ---" % (round(time.time() - start_time, 2)))
+
+        return
         
 
     # CLASSIFIER: XGBOOST
-    # ALGORITHM: SOFTMAX MULTI-CLASS
+    # OUTPUT FUNCTION: SOFTMAX MULTI-CLASS
     # RESULT: PREDICTED PROBABILITY OF EACH DATA POINT BELONGING TO EACH CLASS
     # SOFTMAX: COMPUTE EXP OF INPUT VECTOR TO NORMALIZE DATASET INTO A PROBABILISTIC DISTRIBUTION WITH VALUES SUMMING TO ONE.
     # SOFTMAX: GOOD FOR MULTI-DIMENSIONAL CLASSIFICATION, INSTEAD OF BINARY CLASSIFICATION.
         
-    def setXGBLambda(self, lambda_xgb):
-        self.param['objective'] = 'multi:softprob'
-        self.param['max_depth'] = 3 # depth of tree, default: 6. As value increases: overfit.
-        self.param['num_class'] = len(np.unique(self.y))
-        self.param['eta'] = lambda_xgb # learning rate, default: 0.3
-        
+
 
     # TRAIN WITH K-FOLD STRATIFIED VALIDATION
     def trainStratified(self,
-                        models = xgb.XGBClassifier(**param), 
+                        # models = xgb.XGBClassifier(**param), 
                         nsplits = 5, 
                         confusion = True):
         
@@ -164,4 +192,16 @@ class Learning:
         mbti_type_2 = labels[index_2]
         
         return mbti_type_1, mbti_type_2
+    
+    
+if __name__ == "__main__":
+    
+    learning = Learning()
+    data_loader = DataLoader()
+    X = data_loader.load_unnested_data_pandas()
+    X = learning.vectorize_tokens(X[:5000])
+    X = learning.average_tokens(X)
         
+    
+    # learning.export_vectorized_data(X['token_vector'])
+    

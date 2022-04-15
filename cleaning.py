@@ -1,3 +1,4 @@
+from numpy import NaN
 import pandas as pd
 import re
 from data_loader import DataLoader
@@ -17,19 +18,19 @@ class Cleaning:
         return X_comments, None
     
     
-    def remove_urls(self, X, string = "link"):
+    def remove_urls(self, X, string = ''):
         # remove urls, replace with word 'link'
-        string = string.center(len(string) + 2) # one space padding both on left and right
+        # string = string.center(len(string) + 2) # one space padding both on left and right
         X = X.str.replace(r'http\S+|www\S+', string, regex = True)
         
         return X
     
     
-    def remove_emoticons(self, X, string = "emoji"):
+    def remove_emoticons(self, X, string = ''):
         # remove emoticons, replace with word 'emoji'
-        string = string.center(len(string) + 2) # one space padding both on left and right
+        # string = string.center(len(string) + 2) # one space padding both on left and right
         X = X.str.replace(r'[^\w\s#@/:%.,_-]', string, flags = re.UNICODE, regex = True)
-        
+        # TODO: don't remove emojis but assign strings to different emoji categories (very positive, positive, neutral, sad)
         return X
     
     
@@ -38,18 +39,13 @@ class Cleaning:
         X = X.str.replace(r' +', ' ', regex = True)
         
         return X
+        
     
-    
-    def convert_digits_to_words(self):
-        # TODO
-        return
-    
-    
-    def remove_flair_occurrences(self, X, y, string = "flair"):
+    def remove_flair_occurrences(self, X, y, string = ''):
         
         unique_flair_list = self.flair_list(y)
         
-        string = string.center(len(string) + 2) # one space padding both on left and right
+        # string = string.center(len(string) + 2) # one space padding both on left and right
         replacements = {}
         
         # set up dictionary with labels as keys and string as value
@@ -74,7 +70,7 @@ class Cleaning:
     
     
     # BEWARE: HARDCODED SOLUTION
-    def _convert_noisy_labels(self, y):
+    def convert_noisy_labels(self, y):
         y.loc[(y == 'bot') | (y == 'mr. roboto')] = None
         
         return y
@@ -84,8 +80,9 @@ class Cleaning:
         X_nolabel = X[y.isnull()]
         
         return X_nolabel
-
     
+
+    # DECIDED AGAINST USING IT: IN THIS WAY WE HAVE NATURAL TRAIN/TEST SPLITTING!
     def apply_labels(self, X, y):
         
         y = self._convert_noisy_labels(y)
@@ -102,7 +99,7 @@ class Cleaning:
         
         return y
     
-    
+    # DECIDED AGAINST USING IT: IN THIS WAY WE HAVE NATURAL TRAIN/TEST SPLITTING!
     def remove_unlabeled_data(self, X, y):
         y = self._convert_noisy_labels(y)
         
@@ -111,15 +108,10 @@ class Cleaning:
         
         return X
     
-    
-    def remove_unuseful_data(self, X, threshold):
-        # TODO: drop row if body has less than arbitrary number of characters
-        return
-    
-    
+        
     def remove_unuseful_columns(self, X, threshold = 0.75):
-
         X.dropna(axis = 1, thresh = int(threshold * len(X)), inplace = True)
+        
         return X
     
     
@@ -130,7 +122,7 @@ class Cleaning:
     
     
     def export_data(self, X):
-        X.to_csv('./data/mbti_clean.csv', index = False)
+        X.to_csv('C:/Users/LCorradi/Desktop/University/Passed Exams and Python Envs/Python Envs of Passed Exams/data/mbti_clean.csv', index = False)
         
         return
         
@@ -141,27 +133,18 @@ if __name__ == "__main__":
     X = data_loader.load_data_pandas()
     
     start_time = time.time()
-    print("--- %s seconds ---" % (round(time.time() - start_time, 2)))
     
     cleaning = Cleaning()
+    
     X = cleaning.apply_lowercase(X)
-    
     X['body'], X['title'] = cleaning.merge_posts_and_comments(X['title'], X['body'])
-    
     X['body'] = cleaning.remove_urls(X['body'])
-    
     X['body'] = cleaning.remove_emoticons(X['body'])
-    
     X['body'] = cleaning.remove_flair_occurrences(X['body'], X['author_flair_text'])
-    
     X['body'] = cleaning.remove_consecutive_spaces(X['body'])
-    
-    X['author_flair_text'] = cleaning.apply_labels(X['body'], X['author_flair_text'])
-    
-    X = cleaning.remove_unlabeled_data(X, X['author_flair_text'])
-    
+    X['author_flair_text'] = cleaning.convert_noisy_labels(X['author_flair_text'])
     X = cleaning.remove_unuseful_columns(X)
     
     cleaning.export_data(X)
     
-    print("--- %s seconds ---" % (round(time.time() - start_time, 2))) # time elapsed: 18 seconds for 300k row pandas dataframe
+    print("--- Dataset cleaned. Time elapsed: %s seconds ---" % (round(time.time() - start_time, 2)))

@@ -41,7 +41,7 @@ class Exploration:
         plt.show()
         # st.pyplot(fig)
         
-        
+                
 if __name__ == "__main__":
     
     data_loader = DataLoader()

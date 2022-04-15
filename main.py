@@ -1,4 +1,4 @@
-from data_loader import DataLoader, RedditDataLoader, KaggleDataLoader
+from data_loader import DataLoader
 from exploration import Exploration
 from preprocessing import Preprocessing
 from learning import Learning
@@ -50,7 +50,7 @@ import streamlit as st
     # learn_r.trainStratified(nsplits = 4)
     
     # MODEL USAGE
-    # sentence = 'entp is gonna conquer world'
+    # sentence = 'entps are gonna conquer world'
     # learn_r = Learning()
     # result_1, result_2 = learn_r.guessLabel([sentence], reddit = False)
     # print(result_1, result_2)
@@ -64,7 +64,7 @@ import streamlit as st
     # learn_k.trainStratified(nsplits = 5)
     
     # MODEL USAGE
-    # sentence = 'debating is art'
+    # sentence = 'Fuck fuck gonna conquer world debating'
     # learn_r = Learning()
     # result_1, result_2 = learn_r.guessLabel([sentence], reddit = False)
     # print(result_1, result_2)
@@ -73,7 +73,7 @@ import streamlit as st
 
 @st.cache(allow_output_mutation = True)
 def scrapeData(post_limit):
-    r_df = RedditDataLoader(post_limit)
+    r_df = DataLoader()
     return r_df
 
 @st.cache(allow_output_mutation = True)
@@ -90,13 +90,13 @@ def main():
     
     dataset = ['Kaggle', 'Reddit']
     vis = ['Target variable', 'Wordclouds', 'Stats on words', 'Stats on punctuation']
-    r_df = RedditDataLoader(0)
+    r_df = DataLoader()
     
     dataset_choice = st.sidebar.selectbox("Select dataset: ", dataset)
 
     if dataset_choice == 'Kaggle':
         st.subheader('Kaggle dataset')
-        k_df = KaggleDataLoader()
+        k_df = DataLoader()
         if st.button('Show dataset head'):
             k_head = k_df.getDataFrame()
             st.write(k_head.head())
