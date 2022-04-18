@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import streamlit as st
 from gensim.models import KeyedVectors
 from sklearn.preprocessing import LabelEncoder
+from sklearn.decomposition import PCA
 from sklearn.metrics import confusion_matrix
 import xgboost as xgb
 import pickle
@@ -14,10 +15,6 @@ import time
 
 class Learning:
 
-    def load_word_vectors(self, limit = 150000):
-        word_vectors = KeyedVectors.load_word2vec_format(data_loader.path_pretrained_word2vec(), binary = True, limit = limit)
-        return word_vectors
-    
 
     def __labelEncoder(self, X):
         
@@ -52,24 +49,56 @@ class Learning:
         return
     
     
+    # error: setting array element with a sequence
+    def load_word_vectors(self, limit = 100, pca_components = 100):
+        
+        word_vectors = KeyedVectors.load_word2vec_format(data_loader.path_pretrained_word2vec(), binary = True, limit = limit)
+        print(word_vectors.index_to_key)
+        pca = PCA(n_components = pca_components)
+        
+        reduced_word_vectors = pca.fit_transform(word_vectors)
+        print(pca.explained_variance_ratio_)
+        
+        return word_vectors
+    
+    
+    def filter_null_tokens(self, X):
+        
+        X_null = X[X['token_vector'].isnull()]
+        X = X[X['token_vector'].notnull()]
+        
+        print(X.shape)
+            
+        return X, X_null
+    
+    
     def vectorize_tokens(self, X):
         
         word_vectors = learning.load_word_vectors()
         X['token_vector'] = None
         X['token_vector'] = [word_vectors[word] if word in word_vectors.key_to_index else None for word in X['tokens']]
         
+        del word_vectors
+        
         return X
     
     
-    # TODO: DOES NOT WORK!
-    def average_tokens(self, X):
+    def split_vectors(self, X):
         
-        X_average_vector = [X['token_vector'].mean(axis = 1) for value in X['body_index']]
-        print(len(X_average_vector))
-        # X_average_vector = np.mean([X['token_vector'].mean() for value in X['body_index']], axis = 0)
-        print(X_average_vector[0])
+        X = pd.DataFrame([x for x in X['token_vector'].values.tolist()], index = X.index, dtype = 'float')
+        # X = pd.DataFrame([[y for y in x if y is not None] for x in X['token_vector'].values.tolist()], index = X.index)
         
-        return X_average_vector
+        print(X.shape)
+        print(X[:5])
+        
+        # X_average_vector = [X['token_vector'].mean(axis = 1) for value in X['body_index']]
+        # print(len(X_average_vector))
+        # # X_average_vector = np.mean([X['token_vector'].mean() for value in X['body_index']], axis = 0)
+        # print(X_average_vector[0])
+        
+        # return X_average_vector
+        
+        return X
             
     
     def export_vectorized_data(self, X):
@@ -199,9 +228,9 @@ if __name__ == "__main__":
     learning = Learning()
     data_loader = DataLoader()
     X = data_loader.load_unnested_data_pandas()
-    X = learning.vectorize_tokens(X[:5000])
-    X = learning.average_tokens(X)
+    X = learning.vectorize_tokens(X)
+    X, X_null = learning.filter_null_tokens(X)
+    X = learning.split_vectors(X)
         
-    
     # learning.export_vectorized_data(X['token_vector'])
     
